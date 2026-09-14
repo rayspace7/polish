@@ -371,9 +371,8 @@
 </div>
 
 <script>
-// ⚠️ 배포한 백엔드의 실제 주소로 바꿔주세요. (예: 'https://polish-api.onrender.com')
-// 상대 경로('/api/polish')는 토스 앱 웹뷰 안에서는 토스 호스트를 가리키기 때문에 동작하지 않아요.
-const API_BASE = "https://YOUR-BACKEND-DOMAIN.com";
+// 배포된 백엔드 주소예요.
+const API_BASE = "https://polish-sswd.onrender.com";
 
 let currentScreen = 'screen-input';
 let resultData = {};
@@ -385,6 +384,10 @@ window.addEventListener('DOMContentLoaded', ()=>{
   setInterval(()=>{
     document.getElementById('demoChip').classList.toggle('flip');
   }, 2400);
+
+  // 렌더 무료 티어는 비활성 상태면 잠들어요. 입력화면이 뜨자마자 미리 깨워둬서
+  // 사용자가 폼을 채우는 동안(보통 수십 초) 서버가 준비되도록 해요.
+  fetch(`${API_BASE}/`).catch(() => {});
 });
 
 function showScreen(id){
