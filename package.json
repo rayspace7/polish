@@ -1,20 +1,16 @@
 {
-  "name": "message-polisher-app",
-  "private": true,
-  "version": "0.0.0",
+  "name": "message-polisher-server",
   "type": "module",
+  "version": "1.0.0",
+  "description": "메시지 순화기 앱의 백엔드 API 서버 (Gemini 프록시)",
+  "main": "polish.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build && ait build",
-    "preview": "vite preview",
-    "deploy": "ait deploy"
+    "start": "node polish.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
-    "@apps-in-toss/web-framework": "^3.1.1"
-  },
-  "devDependencies": {
-    "@types/node": "^24.13.3",
-    "vite": "^8.2.2",
-    "@apps-in-toss/devtools": "^3.1.1"
+    "express": "^5.2.1"
   }
 }
