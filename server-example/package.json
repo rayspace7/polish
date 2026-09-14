@@ -1,0 +1,16 @@
+{
+  "name": "message-polisher-server",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "메시지 순화기 앱의 백엔드 API 서버 (Gemini 프록시)",
+  "main": "polish.js",
+  "scripts": {
+    "start": "node polish.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
