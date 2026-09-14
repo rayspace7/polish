@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>메시지 순화기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EFF3EF;
+    --paper:#FBF6E9;
+    --paper-line:rgba(75,115,88,0.14);
+    --margin-line:rgba(199,101,84,0.4);
+    --surface:#FFFFFF;
+    --surface-soft:#FFFDF5;
+    --line:#DED5BC;
+    --ink:#212B25;
+    --ink-soft:#5B6B62;
+    --ink-faint:#8B978F;
+    --sage:#4B7358;
+    --sage-deep:#33513E;
+    --sage-pale:#DCEAE0;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0; height:100%;}
+  body{
+    min-height:100dvh;
+    font-family:'Noto Sans KR', sans-serif;
+    color:var(--ink);
+  }
+  .phone{
+    width:100%;
+    min-height:100dvh;
+    background:
+      repeating-linear-gradient(to bottom, transparent, transparent 27px, var(--paper-line) 28px),
+      var(--paper);
+    overflow:hidden;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+  }
+  .phone::before{
+    content:'';
+    position:absolute;
+    left:40px; top:0; bottom:0;
+    width:1.5px;
+    background:var(--margin-line);
+    pointer-events:none;
+  }
+  .screen{
+    display:none;
+    flex-direction:column;
+    padding:30px 24px 26px 48px;
+    flex:1;
+    opacity:0;
+    transform:translateY(10px);
+    transition:opacity .4s ease, transform .4s ease;
+  }
+  .screen.active{display:flex;}
+  .screen.show{opacity:1; transform:translateY(0);}
+
+  /* --- Hero demo chip --- */
+  .demo-chip{
+    background:var(--sage-deep);
+    border-radius:16px;
+    padding:20px 20px 18px;
+    color:#fff;
+    margin-bottom:22px;
+  }
+  .demo-row{font-size:13.5px; line-height:1.6; min-height:42px; position:relative;}
+  .demo-before, .demo-after{
+    position:absolute; inset:0;
+    transition:opacity .5s ease;
+  }
+  .demo-before{color:#C9D9CD;}
+  .demo-after{color:#fff; font-weight:500; opacity:0;}
+  .demo-chip.flip .demo-before{opacity:0;}
+  .demo-chip.flip .demo-after{opacity:1;}
+  .demo-arrow{
+    display:flex; align-items:center; gap:6px;
+    font-size:10.5px; color:#9FC0A9; margin-top:12px; letter-spacing:0.02em;
+  }
+
+  h1{
+    font-size:23px;
+    font-weight:900;
+    line-height:1.35;
+    margin:0 0 6px;
+    color:var(--ink);
+  }
+  .sub{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    margin-bottom:24px;
+    line-height:1.55;
+  }
+
+  .field-label{
+    font-size:13px;
+    font-weight:700;
+    color:var(--ink);
+    margin:0 0 10px;
+  }
+  .block{margin-bottom:22px;}
+
+  .pill-group{display:flex; flex-wrap:wrap; gap:8px;}
+  .pill-group input[type=radio]{display:none;}
+  .pill{
+    padding:9px 14px;
+    border-radius:10px;
+    border:1.4px solid var(--line);
+    background:var(--surface);
+    font-size:13px;
+    color:var(--ink-soft);
+    cursor:pointer;
+    transition:all .15s ease;
+    user-select:none;
+  }
+  .pill-group input[type=radio]:checked + .pill{
+    background:var(--sage);
+    border-color:var(--sage);
+    color:#fff;
+    font-weight:600;
+  }
+
+  textarea, input[type=text]{
+    width:100%;
+    border:1.4px solid var(--line);
+    border-radius:12px;
+    padding:13px 14px;
+    font-family:'Noto Sans KR', sans-serif;
+    font-size:14.5px;
+    color:var(--ink);
+    background:var(--surface);
+    outline:none;
+    resize:none;
+    transition:border-color .15s ease;
+  }
+  textarea::placeholder, input::placeholder{color:var(--ink-faint);}
+  textarea:focus, input:focus{border-color:var(--sage);}
+  textarea{min-height:96px; line-height:1.6;}
+
+  .cta{
+    margin-top:6px;
+    width:100%;
+    border:none;
+    border-radius:12px;
+    padding:15px 0;
+    font-family:'Noto Sans KR', sans-serif;
+    font-size:15px;
+    font-weight:700;
+    color:#fff;
+    background:var(--sage-deep);
+    cursor:pointer;
+    transition:transform .12s ease, background .15s ease;
+  }
+  .cta:active{transform:scale(0.98);}
+  .cta.ghost{
+    background:transparent;
+    color:var(--sage-deep);
+    border:1.4px solid var(--sage);
+  }
+  .link-btn{
+    margin-top:14px;
+    text-align:center;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    text-decoration:underline;
+    cursor:pointer;
+    background:none; border:none;
+  }
+  .error-msg{
+    font-size:12px; color:#A54B3C; margin-top:10px; min-height:16px;
+  }
+
+  /* --- Loading --- */
+  #screen-loading{align-items:center; justify-content:center; text-align:center;}
+  .spin{
+    width:36px; height:36px;
+    border:3px solid var(--sage-pale);
+    border-top-color:var(--sage);
+    border-radius:50%;
+    animation:spin 0.9s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg);} }
+  .loading-phrase{
+    margin-top:18px;
+    font-size:14px;
+    color:var(--ink-soft);
+    min-height:20px;
+    transition:opacity .35s ease;
+  }
+
+  /* --- Result --- */
+  .result-head{margin-bottom:18px;}
+  .result-head h1{font-size:19px;}
+  .tone-card{
+    background:var(--surface-soft);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:18px 18px 16px;
+    margin-bottom:14px;
+  }
+  .tone-label{
+    font-size:12.5px;
+    font-weight:700;
+    color:var(--sage-deep);
+    margin-bottom:9px;
+  }
+  .tone-text{
+    font-size:14.5px;
+    line-height:1.65;
+    color:var(--ink);
+    margin:0 0 10px;
+    white-space:pre-wrap;
+  }
+  .tone-note{
+    font-size:11.5px;
+    color:var(--ink-faint);
+    margin:0 0 12px;
+    line-height:1.5;
+  }
+  .copy-btn{
+    border:1.4px solid var(--line);
+    background:var(--surface);
+    border-radius:9px;
+    padding:8px 14px;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--sage-deep);
+    cursor:pointer;
+  }
+  .copy-btn.copied{
+    background:var(--sage);
+    border-color:var(--sage);
+    color:#fff;
+  }
+  .owl-icon{display:block; margin:0 auto;}
+  .owl-hero{width:84px; height:92px; margin-bottom:14px;}
+  .owl-loading{width:100px; height:109px; animation:owlBob 2.2s ease-in-out infinite;}
+  @keyframes owlBob{
+    0%,100%{ transform:translateY(0) rotate(-2deg); }
+    50%{ transform:translateY(-6px) rotate(2deg); }
+  }
+  .owl-result{width:34px; height:37px; display:inline-block; vertical-align:middle; margin-right:8px;}
+</style>
+</head>
+<body>
+
+<svg style="display:none" aria-hidden="true">
+  <symbol id="owl-symbol" viewBox="0 0 160 175">
+    <!-- wings -->
+    <ellipse cx="30" cy="105" rx="15" ry="30" fill="#33513E" transform="rotate(-18 30 105)"/>
+    <ellipse cx="130" cy="105" rx="15" ry="30" fill="#33513E" transform="rotate(18 130 105)"/>
+    <!-- quill held in right wing -->
+    <line x1="140" y1="92" x2="152" y2="52" stroke="#212B25" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M152,52 C147,54 143,50 146,45 C150,47 153,49 152,52 Z" fill="#33513E"/>
+    <!-- body -->
+    <ellipse cx="80" cy="98" rx="54" ry="60" fill="#4B7358"/>
+    <!-- belly -->
+    <ellipse cx="80" cy="110" rx="35" ry="42" fill="#FBF6E9"/>
+    <!-- ear tufts -->
+    <path d="M48,42 L40,14 L64,34 Z" fill="#4B7358"/>
+    <path d="M112,42 L120,14 L96,34 Z" fill="#4B7358"/>
+    <!-- glasses -->
+    <circle cx="58" cy="82" r="19" fill="#FBF6E9" stroke="#33513E" stroke-width="3.4"/>
+    <circle cx="102" cy="82" r="19" fill="#FBF6E9" stroke="#33513E" stroke-width="3.4"/>
+    <line x1="77" y1="82" x2="83" y2="82" stroke="#33513E" stroke-width="3.4"/>
+    <line x1="39" y1="76" x2="30" y2="70" stroke="#33513E" stroke-width="3" stroke-linecap="round"/>
+    <line x1="121" y1="76" x2="130" y2="70" stroke="#33513E" stroke-width="3" stroke-linecap="round"/>
+    <!-- pupils -->
+    <circle cx="58" cy="84" r="6.5" fill="#212B25"/>
+    <circle cx="102" cy="84" r="6.5" fill="#212B25"/>
+    <circle cx="60.5" cy="81.5" r="1.8" fill="#fff"/>
+    <circle cx="104.5" cy="81.5" r="1.8" fill="#fff"/>
+    <!-- beak -->
+    <path d="M73,101 L87,101 L80,112 Z" fill="#E3A23D"/>
+    <!-- feet -->
+    <path d="M62,156 l-5,11 M62,156 l5,11" stroke="#33513E" stroke-width="3.2" stroke-linecap="round"/>
+    <path d="M98,156 l-5,11 M98,156 l5,11" stroke="#33513E" stroke-width="3.2" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+<div class="phone">
+
+  <!-- SCREEN 1: 입력 -->
+  <div class="screen active" id="screen-input">
+    <svg class="owl-icon owl-hero"><use href="#owl-symbol"/></svg>
+    <div class="demo-chip" id="demoChip">
+      <div class="demo-row">
+        <span class="demo-before">"야근 못 해요, 저 오늘 약속 있어요"</span>
+        <span class="demo-after">"죄송한데 오늘은 선약이 있어서 어려울 것 같아요 🙏"</span>
+      </div>
+      <div class="demo-arrow">보내기 전, 한 번 다듬으면</div>
+    </div>
+
+    <h1>메시지 순화기</h1>
+    <div class="sub">하고 싶은 말을 그대로 적으면, 상대에 맞게 예의 있는 버전 3가지로 바꿔드려요.</div>
+
+    <div class="block">
+      <div class="field-label">받는 사람</div>
+      <div class="pill-group">
+        <input type="radio" name="audience" id="aud-boss" value="상사" checked>
+        <label for="aud-boss" class="pill">상사</label>
+        <input type="radio" name="audience" id="aud-peer" value="동료">
+        <label for="aud-peer" class="pill">동료</label>
+        <input type="radio" name="audience" id="aud-senior" value="선배">
+        <label for="aud-senior" class="pill">선배</label>
+        <input type="radio" name="audience" id="aud-junior" value="후배">
+        <label for="aud-junior" class="pill">후배</label>
+        <input type="radio" name="audience" id="aud-client" value="거래처">
+        <label for="aud-client" class="pill">거래처</label>
+        <input type="radio" name="audience" id="aud-friend" value="친구·지인">
+        <label for="aud-friend" class="pill">친구·지인</label>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="field-label">하고 싶은 말</div>
+      <textarea id="rawMessage" placeholder="예: 그거 오늘까지 안 됩니다. 시간이 너무 부족해요"></textarea>
+    </div>
+
+    <div class="block">
+      <div class="field-label">상황 (선택)</div>
+      <input type="text" id="context" placeholder="예: 마감 연장 요청">
+    </div>
+
+    <button class="cta" onclick="startPolish()">순화하기</button>
+    <div class="error-msg" id="formError"></div>
+  </div>
+
+  <!-- SCREEN 2: 로딩 -->
+  <div class="screen" id="screen-loading">
+    <svg class="owl-icon owl-loading"><use href="#owl-symbol"/></svg>
+    <div class="loading-phrase" id="loadingPhrase">적당한 표현을 고르는 중...</div>
+  </div>
+
+  <!-- SCREEN 3: 결과 -->
+  <div class="screen" id="screen-result">
+    <div class="result-head">
+      <h1><svg class="owl-icon owl-result"><use href="#owl-symbol"/></svg>이렇게 바꿔봤어요</h1>
+      <div class="sub" style="margin-bottom:0;">마음에 드는 버전을 복사해서 바로 보내세요.</div>
+    </div>
+
+    <div class="tone-card">
+      <div class="tone-label">정중하게</div>
+      <p class="tone-text" id="politeText">…</p>
+      <p class="tone-note" id="politeNote">…</p>
+      <button class="copy-btn" onclick="copyTone('polite', this)">복사하기</button>
+    </div>
+
+    <div class="tone-card">
+      <div class="tone-label">부드럽게</div>
+      <p class="tone-text" id="softText">…</p>
+      <p class="tone-note" id="softNote">…</p>
+      <button class="copy-btn" onclick="copyTone('soft', this)">복사하기</button>
+    </div>
+
+    <div class="tone-card">
+      <div class="tone-label">단호하게</div>
+      <p class="tone-text" id="firmText">…</p>
+      <p class="tone-note" id="firmNote">…</p>
+      <button class="copy-btn" onclick="copyTone('firm', this)">복사하기</button>
+    </div>
+
+    <button class="cta ghost" onclick="resetApp()">다시 순화하기</button>
+  </div>
+
+</div>
+
+<script>
+// ⚠️ 배포한 백엔드의 실제 주소로 바꿔주세요. (예: 'https://polish-api.onrender.com')
+// 상대 경로('/api/polish')는 토스 앱 웹뷰 안에서는 토스 호스트를 가리키기 때문에 동작하지 않아요.
+const API_BASE = "https://YOUR-BACKEND-DOMAIN.com";
+
+let currentScreen = 'screen-input';
+let resultData = {};
+
+window.addEventListener('DOMContentLoaded', ()=>{
+  requestAnimationFrame(()=> requestAnimationFrame(()=>{
+    document.getElementById(currentScreen).classList.add('show');
+  }));
+  setInterval(()=>{
+    document.getElementById('demoChip').classList.toggle('flip');
+  }, 2400);
+});
+
+function showScreen(id){
+  document.getElementById(currentScreen).classList.remove('active','show');
+  const next = document.getElementById(id);
+  next.classList.add('active');
+  requestAnimationFrame(()=> requestAnimationFrame(()=> next.classList.add('show')));
+  currentScreen = id;
+}
+
+function resetApp(){
+  showScreen('screen-input');
+}
+
+const phrases = [
+  "적당한 표현을 고르는 중...",
+  "예의를 담는 중...",
+  "쿠션어를 얹는 중...",
+  "관계를 헤치지 않는 선을 찾는 중...",
+  "세 가지 버전으로 다듬는 중...",
+  "거의 다 됐어요..."
+];
+
+async function startPolish(){
+  const audience = document.querySelector('input[name="audience"]:checked')?.value || '동료';
+  const rawMessage = document.getElementById('rawMessage').value.trim();
+  const context = document.getElementById('context').value.trim();
+  const errEl = document.getElementById('formError');
+
+  if(!rawMessage){
+    errEl.textContent = '하고 싶은 말을 적어주세요';
+    return;
+  }
+  errEl.textContent = '';
+
+  showScreen('screen-loading');
+  let i = 0;
+  const phraseEl = document.getElementById('loadingPhrase');
+  const loadingInterval = setInterval(()=>{
+    i = (i+1) % phrases.length;
+    phraseEl.style.opacity = 0;
+    setTimeout(()=>{ phraseEl.textContent = phrases[i]; phraseEl.style.opacity = 1; }, 300);
+  }, 1400);
+
+  try{
+    const data = await fetchPolish({ audience, rawMessage, context });
+    resultData = data;
+    renderResult(data);
+    clearInterval(loadingInterval);
+    showScreen('screen-result');
+  }catch(e){
+    clearInterval(loadingInterval);
+    console.error(e);
+    let msg = e.message || '순화 중 문제가 생겼어요. 다시 시도해주세요';
+    if (e.name === 'TimeoutError' || e.name === 'AbortError') {
+      msg = '응답이 너무 오래 걸려요. 잠시 후 다시 시도해주세요';
+    }
+    document.getElementById('formError').textContent = msg;
+    showScreen('screen-input');
+  }
+}
+
+async function fetchPolish({audience, rawMessage, context}){
+  // 이 앱은 클라이언트에서 AI API를 직접 호출하지 않아요.
+  // API 키를 클라이언트에 넣으면 노출되기 때문에, 자체 서버(API_BASE + /api/polish)가 대신 호출해요.
+  // 서버 구현 예시는 server-example/polish.js를 참고하세요.
+  const response = await fetch(`${API_BASE}/api/polish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ audience, rawMessage, context }),
+    signal: AbortSignal.timeout(60000) // 무료 호스팅 콜드스타트(최대 ~50초)를 버틸 수 있게 넉넉히
+  });
+  if (!response.ok) {
+    let message = `순화 서버 응답 오류: ${response.status}`;
+    try {
+      const errBody = await response.json();
+      if (errBody?.error) message = errBody.error;
+    } catch (_) { /* 응답이 JSON이 아니면 기본 메시지 사용 */ }
+    const err = new Error(message);
+    err.status = response.status;
+    throw err;
+  }
+  return await response.json();
+}
+
+
+function renderResult(data){
+  document.getElementById('politeText').textContent = data.polite?.text || '';
+  document.getElementById('politeNote').textContent = data.polite?.note || '';
+  document.getElementById('softText').textContent = data.soft?.text || '';
+  document.getElementById('softNote').textContent = data.soft?.note || '';
+  document.getElementById('firmText').textContent = data.firm?.text || '';
+  document.getElementById('firmNote').textContent = data.firm?.note || '';
+}
+
+function copyTone(key, btn){
+  const text = resultData[key]?.text || '';
+  navigator.clipboard.writeText(text).then(()=>{
+    const original = btn.textContent;
+    btn.textContent = '복사됨';
+    btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent = original; btn.classList.remove('copied'); }, 1600);
+  });
+}
+</script>
+</body>
+</html>
