@@ -5,7 +5,8 @@
   "description": "메시지 순화기 앱의 백엔드 API 서버 (Gemini 프록시)",
   "main": "polish.js",
   "scripts": {
-    "start": "node polish.js"
+    "start": "node polish.js",
+    "build": "echo 'no build step needed'"
   },
   "engines": {
     "node": ">=18"
