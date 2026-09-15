@@ -370,7 +370,8 @@
 
 </div>
 
-<script>
+<script type="module">
+import { loadFullScreenAd, showFullScreenAd } from '@apps-in-toss/web-framework';
 // 배포된 백엔드 주소예요.
 const API_BASE = "https://polish-sswd.onrender.com";
 
@@ -398,8 +399,56 @@ function showScreen(id){
   currentScreen = id;
 }
 
+// isSupported() 자체가 토스 앱 밖(브릿지 미존재 환경)에서는 에러를 던질 수 있어요.
+// 그래서 항상 이 헬퍼로 감싸서, 실패하면 "미지원"으로 안전하게 처리해요.
+function safeIsSupported(fn){
+  try { return !!fn(); } catch (e) { return false; }
+}
+
+// 앱인토스 콘솔에서 발급받은 실제 전면 광고 지면 ID예요.
+const AD_GROUP_ID_INTERSTITIAL = "ait.v2.live.4c9dfb45b93849c3";
+let polishCount = 0;         // 완료한 순화 횟수. 2번째부터(polishCount >= 1) 전면 광고를 보여줘요.
+let interstitialLoaded = false;
+
+function preloadInterstitial(){
+  if (!safeIsSupported(() => loadFullScreenAd.isSupported())) return;
+  interstitialLoaded = false;
+  loadFullScreenAd({
+    options: { adGroupId: AD_GROUP_ID_INTERSTITIAL },
+    onEvent: (e) => { if (e.type === 'loaded') interstitialLoaded = true; },
+    onError: (e) => console.error('전면 광고 로드 실패:', e),
+  });
+}
+preloadInterstitial();
+
+/**
+ * 2번째부터, 미리 불러둔 전면 광고를 보여준 뒤 콜백을 실행해요.
+ * 광고가 준비되지 않았거나 미지원 환경이면 광고 없이 바로 진행해요(사용자를 막지 않기 위해).
+ */
+function withInterstitialIfNeeded(proceed){
+  const shouldShowAd = polishCount >= 1 && interstitialLoaded && safeIsSupported(() => showFullScreenAd.isSupported());
+  if (!shouldShowAd) {
+    proceed();
+    return;
+  }
+  showFullScreenAd({
+    options: { adGroupId: AD_GROUP_ID_INTERSTITIAL },
+    onEvent: (e) => {
+      if (e.type === 'dismissed' || e.type === 'failedToShow') {
+        preloadInterstitial(); // 다음을 위해 다시 미리 불러둬요.
+        proceed();
+      }
+    },
+    onError: (e) => {
+      console.error('전면 광고 노출 실패:', e);
+      preloadInterstitial();
+      proceed();
+    },
+  });
+}
+
 function resetApp(){
-  showScreen('screen-input');
+  withInterstitialIfNeeded(() => showScreen('screen-input'));
 }
 
 const phrases = [
@@ -437,6 +486,7 @@ async function startPolish(){
     resultData = data;
     renderResult(data);
     clearInterval(loadingInterval);
+    polishCount++;
     showScreen('screen-result');
   }catch(e){
     clearInterval(loadingInterval);
@@ -492,6 +542,10 @@ function copyTone(key, btn){
     setTimeout(()=>{ btn.textContent = original; btn.classList.remove('copied'); }, 1600);
   });
 }
+
+window.startPolish = startPolish;
+window.resetApp = resetApp;
+window.copyTone = copyTone;
 </script>
 </body>
 </html>
