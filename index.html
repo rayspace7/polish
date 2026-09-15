@@ -377,6 +377,8 @@ const API_BASE = "https://polish-sswd.onrender.com";
 
 let currentScreen = 'screen-input';
 let resultData = {};
+let navToken = 0;           // 뒤로가기로 화면을 벗어나면 증가시켜, 진행 중이던 요청 결과를 무시해요.
+let loadingInterval = null;
 
 window.addEventListener('DOMContentLoaded', ()=>{
   requestAnimationFrame(()=> requestAnimationFrame(()=>{
@@ -391,13 +393,37 @@ window.addEventListener('DOMContentLoaded', ()=>{
   fetch(`${API_BASE}/`).catch(() => {});
 });
 
-function showScreen(id){
+// 화면 전환(DOM만). 히스토리는 건드리지 않아요.
+function switchScreen(id){
+  if (id === currentScreen) return;
   document.getElementById(currentScreen).classList.remove('active','show');
   const next = document.getElementById(id);
   next.classList.add('active');
   requestAnimationFrame(()=> requestAnimationFrame(()=> next.classList.add('show')));
   currentScreen = id;
 }
+
+// 새 히스토리 항목을 쌓으면서 이동해요. (뒤로가기로 되돌아올 수 있음)
+function goTo(id){
+  history.pushState({ screen: id }, '');
+  switchScreen(id);
+}
+
+// 현재 히스토리 항목을 교체하면서 이동해요. (로딩 → 결과처럼 되돌아갈 필요가 없을 때)
+function replaceWith(id){
+  history.replaceState({ screen: id }, '');
+  switchScreen(id);
+}
+
+// 첫 진입 화면을 히스토리에 기록해둬요.
+history.replaceState({ screen: 'screen-input' }, '');
+
+// 기기의 뒤로가기를 누르면 미니앱이 종료되는 대신 이전 화면으로 돌아가요.
+window.addEventListener('popstate', (e) => {
+  navToken++;                  // 진행 중이던 요청 결과는 무시해요.
+  if (loadingInterval) { clearInterval(loadingInterval); loadingInterval = null; }
+  switchScreen(e.state?.screen || 'screen-input');
+});
 
 // isSupported() 자체가 토스 앱 밖(브릿지 미존재 환경)에서는 에러를 던질 수 있어요.
 // 그래서 항상 이 헬퍼로 감싸서, 실패하면 "미지원"으로 안전하게 처리해요.
@@ -448,7 +474,8 @@ function withInterstitialIfNeeded(proceed){
 }
 
 function resetApp(){
-  withInterstitialIfNeeded(() => showScreen('screen-input'));
+  // 화면을 새로 쌓지 않고 되감아요. 그래야 뒤로가기 동작이 계속 자연스러워요.
+  withInterstitialIfNeeded(() => history.back());
 }
 
 const phrases = [
@@ -472,10 +499,11 @@ async function startPolish(){
   }
   errEl.textContent = '';
 
-  showScreen('screen-loading');
+  goTo('screen-loading');
+  const token = ++navToken;
   let i = 0;
   const phraseEl = document.getElementById('loadingPhrase');
-  const loadingInterval = setInterval(()=>{
+  loadingInterval = setInterval(()=>{
     i = (i+1) % phrases.length;
     phraseEl.style.opacity = 0;
     setTimeout(()=>{ phraseEl.textContent = phrases[i]; phraseEl.style.opacity = 1; }, 300);
@@ -483,20 +511,22 @@ async function startPolish(){
 
   try{
     const data = await fetchPolish({ audience, rawMessage, context });
+    if (token !== navToken) return;   // 기다리는 동안 뒤로가기를 눌렀으면 결과를 띄우지 않아요.
     resultData = data;
     renderResult(data);
-    clearInterval(loadingInterval);
+    clearInterval(loadingInterval); loadingInterval = null;
     polishCount++;
-    showScreen('screen-result');
+    replaceWith('screen-result');     // 로딩 화면을 대체해, 뒤로가기 시 입력 화면으로 가요.
   }catch(e){
-    clearInterval(loadingInterval);
+    if (token !== navToken) return;
+    clearInterval(loadingInterval); loadingInterval = null;
     console.error(e);
     let msg = e.message || '순화 중 문제가 생겼어요. 다시 시도해주세요';
     if (e.name === 'TimeoutError' || e.name === 'AbortError') {
       msg = '응답이 너무 오래 걸려요. 잠시 후 다시 시도해주세요';
     }
     document.getElementById('formError').textContent = msg;
-    showScreen('screen-input');
+    history.back();                   // 로딩 항목을 걷어내고 입력 화면으로 돌아가요.
   }
 }
 
